@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8" />
+<title>Minesweeper</title>
+<style>
+  body {
+    font-family: system-ui, sans-serif;
+    text-align: center;
+    background: #f4f4f4;
+  }
+  .controls {
+    margin: 10px;
+  }
+  .board {
+    display: grid;
+    margin: 20px auto;
+    gap: 2px;
+    background: #888;
+    padding: 5px;
+    width: fit-content;
+  }
+  .cell {
+    width: 32px;
+    height: 32px;
+    background: #ccc;
+    border: 1px solid #999;
+    line-height: 32px;
+    cursor: pointer;
+    font-weight: bold;
+    user-select: none;
+  }
+  .cell.open {
+    background: #eee;
+    cursor: default;
+  }
+  .cell.mine {
+    background: #f44336;
+  }
+  .cell.flag {
+    background: #ffeb3b;
+  }
+  button {
+    font-size: 18px;
+    cursor: pointer;
+  }
+</style>
+</head>
+<body>
+
+<h2>Minesweeper</h2>
+
+<div class="controls">
+  Größe:
+  <select id="size">
+    <option value="8">8 × 8</option>
+    <option value="10">10 × 10</option>
+    <option value="12">12 × 12</option>
+  </select>
+  <button onclick="init()">😊</button>
+</div>
+
+<div id="board" class="board"></div>
+
+<script>
+let size, mines, boardData, opened;
+
+function init() {
+  size = parseInt(document.getElementById('size').value);
+  mines = Math.floor(size * size * 0.15);
+  opened = 0;
+  boardData = [];
+  const board = document.getElementById('board');
+  board.innerHTML = '';
+  board.style.gridTemplateColumns = `repeat(${size}, 32px)`;
+
+  for (let i = 0; i < size * size; i++) {
+    boardData.push({
+      mine: false,
+      count: 0,
+      open: false,
+      flag: false
+    });
+  }
+
+  // Minen platzieren
+  let placed = 0;
+  while (placed < mines) {
+    const r = Math.floor(Math.random() * boardData.length);
+    if (!boardData[r].mine) {
+      boardData[r].mine = true;
+      placed++;
+    }
+  }
+
+  // Zahlen berechnen
+  for (let i = 0; i < boardData.length; i++) {
+    if (boardData[i].mine) continue;
+    getNeighbors(i).forEach(n => {
+      if (boardData[n].mine) boardData[i].count++;
+    });
+  }
+
+  // Spielfeld erzeugen
+  for (let i = 0; i < boardData.length; i++) {
+    const cell = document.createElement('div');
+    cell.className = 'cell';
+    cell.oncontextmenu = e => {
+      e.preventDefault();
+      toggleFlag(i, cell);
+    };
+    cell.onclick = () => clickCell(i, cell);
+    board.appendChild(cell);
+  }
+}
+
+function getNeighbors(i) {
+  const x = i % size;
+  const y = Math.floor(i / size);
+  const neighbors = [];
+  for (let dx = -1; dx <= 1; dx++) {
+    for (let dy = -1; dy <= 1; dy++) {
+      if (dx === 0 && dy === 0) continue;
+      const nx = x + dx;
+      const ny = y + dy;
+      if (nx >= 0 && nx < size && ny >= 0 && ny < size) {
+        neighbors.push(ny * size + nx);
+      }
+    }
+  }
+  return neighbors;
+}
+
+function clickCell(i, el) {
+  const cell = boardData[i];
+  if (cell.open || cell.flag) return;
+
+  if (cell.mine) {
+    el.classList.add('mine');
+    el.textContent = '💣';
+    alert('Boom! Spiel verloren 💥');
+    revealAll();
+    return;
+  }
+
+  openCell(i);
+}
+
+function openCell(i) {
+  const cell = boardData[i];
+  const el = document.getElementsByClassName('cell')[i];
+  if (cell.open) return;
+
+  cell.open = true;
+  opened++;
+  el.classList.add('open');
+
+  if (cell.count > 0) {
+    el.textContent = cell.count;
+  } else {
+    getNeighbors(i).forEach(openCell);
+  }
+
+  // Zahlenlogik: richtige Anzahl Flaggen → Nachbarn öffnen
+  if (cell.count > 0) {
+    const neighbors = getNeighbors(i);
+    const flags = neighbors.filter(n => boardData[n].flag).length;
+    if (flags === cell.count) {
+      neighbors.forEach(openCell);
+    }
+  }
+
+  if (opened === size * size - mines) {
+    alert('Glückwunsch! Du hast gewonnen 🎉');
+  }
+}
+
+function toggleFlag(i, el) {
+  const cell = boardData[i];
+  if (cell.open) return;
+  cell.flag = !cell.flag;
+  el.classList.toggle('flag');
+  el.textContent = cell.flag ? '🚩' : '';
+}
+
+function revealAll() {
+  boardData.forEach((c, i) => {
+    const el = document.getElementsByClassName('cell')[i];
+    if (c.mine) {
+      el.textContent = '💣';
+      el.classList.add('mine');
+    }
+  });
+}
+
+init();
+</script>
+
+</body>
+</html>
